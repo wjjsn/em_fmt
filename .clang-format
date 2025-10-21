@@ -1,0 +1,49 @@
+BasedOnStyle: LLVM
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+
+# ---- 括号与空格风格 ----
+BreakBeforeBraces: Attach         # { 紧贴上一行
+AllowShortBlocksOnASingleLine: false
+AllowShortFunctionsOnASingleLine: Empty
+SpaceBeforeParens: ControlStatements
+SpacesBeforeTrailingComments: 1
+SpaceAfterTemplateKeyword: false
+
+# ---- 命名空间与模板 ----
+NamespaceIndentation: None        # namespace 不缩进
+IndentCaseLabels: true
+CompactNamespaces: false
+FixNamespaceComments: false
+
+# ---- 换行控制 ----
+ColumnLimit: 120
+BinPackParameters: false
+BinPackArguments: false
+AllowAllConstructorInitializersOnNextLine: false
+AllowAllArgumentsOnNextLine: false
+
+# ---- 对齐与格式 ----
+AlignConsecutiveAssignments: true
+AlignConsecutiveDeclarations: true
+AlignEscapedNewlines: Right
+AlignOperands: true
+AlignTrailingComments: true
+
+# ---- 类与结构体 ----
+AccessModifierOffset: -4
+ConstructorInitializerAllOnOneLineOrOnePerLine: true
+BreakConstructorInitializers: AfterColon
+AllowShortEnumsOnASingleLine: false
+
+# ---- 模板参数与泛型 ----
+SpaceAfterCStyleCast: false
+Cpp11BracedListStyle: false
+KeepEmptyLinesAtTheStartOfBlocks: false
+
+# ---- 额外美化选项 ----
+ReflowComments: false
+SortIncludes: false
+IncludeBlocks: Preserve
+IndentPPDirectives: None
