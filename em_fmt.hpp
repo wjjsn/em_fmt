@@ -1,9 +1,8 @@
 #pragma once
 #include <array>
-#include <print>
 #include <stdio.h>
 #include <charconv>
-
+#include <algorithm>
 namespace em
 {
 	template <size_t N>
