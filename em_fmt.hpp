@@ -80,6 +80,10 @@ template<fixed_string format, typename... T> int fprint(FILE *stream, T... args)
     constexpr int acc_arg_num = sizeof...(args);
     static_assert(StrLit::arg_attribute.size() == acc_arg_num, "Error at args number");
     static_assert(format.format_ok, "Number of '{' or '}' Error");
+
+    if constexpr (format.need_analyze_num == 0) {
+        fwrite(format.data_.data(), sizeof(char), format.data_.size() - 1, stream);
+    }
     std::array<char, 8> buf;
     return 0;
 }
