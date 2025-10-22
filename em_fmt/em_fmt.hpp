@@ -1,13 +1,9 @@
 #pragma once
 
 #include <array>
-#include <charconv>
 #include <cstdio>
 #include <cstring>
-#include <limits>
-#include <string>
-#include <string_view>
-#include <system_error>
+#include "details/write_argument.tpp"
 #include <tuple>
 #include <type_traits>
 #include <utility>
@@ -79,14 +75,6 @@ template <std::size_t N> struct fixed_string {
         }
         analyze();
     }
-};
-
-struct arg_analyze_result {
-    unsigned int        write_bytes{};
-    unsigned int        skip_bytes{};
-    bool                have_arg{};
-    unsigned int        int_base{10};
-    std::chars_format   float_format{std::chars_format::general};
 };
 
 template <std::size_t N> struct format_attributes {
@@ -171,64 +159,6 @@ void dispatch_arg(Tuple &&tup, std::size_t index, Func &&func) {
         std::forward<Func>(func),
         std::make_index_sequence<std::tuple_size_v<std::remove_reference_t<Tuple>>>{});
 }
-template<std::integral T> void write_argument(FILE *stream, const arg_analyze_result &attr, const T &value) {
-    // 处理整型（包含 bool, char, short, int, long...）
-    char buffer[std::numeric_limits<T>::digits10 + 3]{};
-    auto [ptr, ec] = std::to_chars(buffer, buffer + sizeof(buffer), value, attr.int_base);
-    if (ec == std::errc()) {
-        fwrite(buffer, sizeof(char), static_cast<std::size_t>(ptr - buffer), stream);
-    }
-}
-
-template<std::floating_point T> void write_argument(FILE *stream, const arg_analyze_result &attr, const T &value) {
-    char buffer[128]{}; //TDDO：应该考虑这个内存的申请方式
-    auto [ptr, ec] = std::to_chars(buffer, buffer + sizeof(buffer), value, attr.float_format);
-    if (ec == std::errc()) {
-        fwrite(buffer, sizeof(char), static_cast<std::size_t>(ptr - buffer), stream);
-    }
-}
-
-void write_argument(FILE *stream, const arg_analyze_result &attr, char *value);
-
-template<typename T> void write_argument(FILE *stream, const arg_analyze_result &attr, const T &value) {
-    // using ValueType = std::decay_t<T>;
-    // if constexpr (std::is_same_v<ValueType, bool>) {
-    //     const char ch = value ? '1' : '0';
-    //     fwrite(&ch, sizeof(char), 1, stream);
-    // } else if constexpr (std::is_same_v<ValueType, char>) {
-    //     fwrite(&value, sizeof(char), 1, stream);
-    // } else if constexpr (std::is_integral_v<ValueType>) {
-    //     char buffer[std::numeric_limits<ValueType>::digits10 + 3]{};
-    //     auto [ptr, ec] = std::to_chars(buffer, buffer + sizeof(buffer), value, attr.int_base);
-    //     if (ec == std::errc()) {
-    //         fwrite(buffer, sizeof(char), static_cast<std::size_t>(ptr - buffer), stream);
-    //     }
-    // } else if constexpr (std::is_floating_point_v<ValueType>) {
-    //     char buffer[128]{};
-    //     auto [ptr, ec] = std::to_chars(buffer, buffer + sizeof(buffer), value, attr.float_format);
-    //     if (ec == std::errc()) {
-    //         fwrite(buffer, sizeof(char), static_cast<std::size_t>(ptr - buffer), stream);
-    //     }
-    // } else if constexpr (std::is_same_v<ValueType, const char *> || std::is_same_v<ValueType, char *>) {
-    //     if (value == nullptr) {
-    //         static constexpr char null_str[] = "(null)";
-    //         fwrite(null_str, sizeof(char), sizeof(null_str) - 1, stream);
-    //     } else {
-    //         std::size_t length = std::strlen(value);
-    //         fwrite(value, sizeof(char), length, stream);
-    //     }
-    // } else if constexpr (std::is_same_v<ValueType, std::string_view>) {
-    //     fwrite(value.data(), sizeof(char), value.size(), stream);
-    // } else if constexpr (std::is_same_v<ValueType, std::string>) {
-    //     fwrite(value.data(), sizeof(char), value.size(), stream);
-    // } else {
-    static_assert(sizeof(T) == 0, "Unsupported argument type for fprint");
-    // }
-}
-
-template<>
-void write_argument<std::string_view>(FILE *stream, const arg_analyze_result &attr, const std::string_view &value);
-template<> void write_argument<std::string>(FILE *stream, const arg_analyze_result &attr, const std::string &value);
 
 template<fixed_string S> struct StringLiteral {
     inline static constexpr auto attributes = make_attributes<S>();
