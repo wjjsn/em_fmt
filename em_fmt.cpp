@@ -5,5 +5,6 @@ using namespace em;
 
 int main() {
     fprint<"123456789\n">(stdout);
-    fprint<"6{}8{}">(stdout, 7, 9);
+    fprint<"6{}8{}\n">(stdout, 7, 9);
+    fprint<"Escaped braces: {{}} and text: {}\n">(stdout, "done");
 }
