@@ -38,7 +38,7 @@ int main() {
         auto start = steady_clock::now();
         for (int i = 0; i < 100; ++i) {
             for (int j = 0; j < 1145; ++j) {
-                std::cout << "std_cout   :" << i << " " << j << std::endl;
+                std::cout << "std_cout   :" << i << " " << j << '\n';
             }
         }
         auto end   = steady_clock::now();
