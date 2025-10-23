@@ -77,73 +77,73 @@ template <std::size_t N> struct fixed_string {
     }
 };
 
-template <std::size_t N> struct format_attributes {
-    std::array<arg_analyze_result, N> attributes{};
-};
+template<fixed_string format> struct format_attributes {
+    consteval static auto make_attributes() {
+        std::array<arg_analyze_result, format.need_analyze_num> attributes{};
+        constexpr std::size_t len = format.data_.size() > 0 ? format.data_.size() - 1 : 0;
+        std::size_t           idx = 0;
+        std::size_t           i   = 0;
 
-template <fixed_string format> consteval auto make_attributes() {
-    format_attributes<format.need_analyze_num> result{};
-    constexpr std::size_t len = format.data_.size() > 0 ? format.data_.size() - 1 : 0;
-    std::size_t           idx = 0;
-    std::size_t           i   = 0;
+        while (i < len && idx < attributes.size()) {
+            arg_analyze_result attr{};
+            std::size_t        literal_begin = i;
+            while (i < len) {
+                char ch = format.data_[i];
+                if (ch == '{' || ch == '}') {
+                    break;
+                }
+                ++i;
+            }
 
-    while (i < len && idx < result.attributes.size()) {
-        arg_analyze_result attr{};
-        std::size_t        literal_begin = i;
-        while (i < len) {
-            char ch = format.data_[i];
-            if (ch == '{' || ch == '}') {
+            if (i > literal_begin) {
+                attr.write_bytes  = static_cast<unsigned int>(i - literal_begin);
+                attributes[idx++] = attr;
+                continue;
+            }
+
+            if (i >= len) {
                 break;
             }
-            ++i;
-        }
 
-        if (i > literal_begin) {
-            attr.write_bytes = static_cast<unsigned int>(i - literal_begin);
-            result.attributes[idx++] = attr;
-            continue;
-        }
-
-        if (i >= len) {
-            break;
-        }
-
-        char ch = format.data_[i];
-        if (ch == '{') {
-            if (i + 1 < len && format.data_[i + 1] == '{') {
-                attr.write_bytes = 1;
-                attr.skip_bytes  = 1;
-                result.attributes[idx++] = attr;
-                i += 2;
+            char ch = format.data_[i];
+            if (ch == '{') {
+                if (i + 1 < len && format.data_[i + 1] == '{') {
+                    attr.write_bytes  = 1;
+                    attr.skip_bytes   = 1;
+                    attributes[idx++] = attr;
+                    i += 2;
+                    continue;
+                }
+                if (i + 1 < len && format.data_[i + 1] == '}') {
+                    attr.write_bytes  = 0;
+                    attr.skip_bytes   = 2;
+                    attr.have_arg     = true;
+                    attributes[idx++] = attr;
+                    i += 2;
+                    continue;
+                }
+                ++i;
                 continue;
             }
-            if (i + 1 < len && format.data_[i + 1] == '}') {
-                attr.write_bytes = 0;
-                attr.skip_bytes  = 2;
-                attr.have_arg    = true;
-                result.attributes[idx++] = attr;
-                i += 2;
+
+            if (ch == '}') {
+                if (i + 1 < len && format.data_[i + 1] == '}') {
+                    attr.write_bytes  = 1;
+                    attr.skip_bytes   = 1;
+                    attributes[idx++] = attr;
+                    i += 2;
+                    continue;
+                }
+                ++i;
                 continue;
             }
-            ++i;
-            continue;
         }
 
-        if (ch == '}') {
-            if (i + 1 < len && format.data_[i + 1] == '}') {
-                attr.write_bytes = 1;
-                attr.skip_bytes  = 1;
-                result.attributes[idx++] = attr;
-                i += 2;
-                continue;
-            }
-            ++i;
-            continue;
-        }
+        return attributes;
     }
 
-    return result;
-}
+    constexpr static std::array<arg_analyze_result, format.need_analyze_num> attributes = make_attributes();
+};
 
 template <typename Tuple, typename Func, std::size_t... I>
 void dispatch_arg_impl(Tuple &&tup, std::size_t index, Func &&func, std::index_sequence<I...>) {
@@ -160,16 +160,12 @@ void dispatch_arg(Tuple &&tup, std::size_t index, Func &&func) {
         std::make_index_sequence<std::tuple_size_v<std::remove_reference_t<Tuple>>>{});
 }
 
-template<fixed_string S> struct StringLiteral {
-    inline static constexpr auto attributes = make_attributes<S>();
-};
-
 template <fixed_string format, typename... T>
 int fprint(FILE *stream, T &&...args) {
     static_assert(format.format_ok, "Number of '{' or '}' Error");
     static_assert(format.need_arg_num == sizeof...(args), "Error at args number");
 
-    const auto &attributes = StringLiteral<format>::attributes.attributes;
+    const auto &attributes = format_attributes<format>::attributes;
     const char *cursor     = format.data_.data();
     auto        arg_tuple  = std::forward_as_tuple(std::forward<T>(args)...);
     std::size_t arg_index  = 0;
