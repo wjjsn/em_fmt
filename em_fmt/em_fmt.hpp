@@ -9,7 +9,7 @@
 #include <utility>
 
 namespace em {
-
+/*固定字符串，并进行基础解析*/
 template <std::size_t N> struct fixed_string {
     std::array<char, N> data_{};
     unsigned int        need_arg_num     = 0;
@@ -76,7 +76,7 @@ template <std::size_t N> struct fixed_string {
         analyze();
     }
 };
-
+/*根据基础解析进行详细解析，生成输出时属性*/
 template<fixed_string format> struct format_attributes {
     consteval static auto make_attributes() {
         std::array<arg_analyze_result, format.need_analyze_num> attributes{};

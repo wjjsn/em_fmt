@@ -1,10 +1,17 @@
 #pragma once
+#include <array>
 #include <cstddef>
-#include <limits>
+#include <cstdint>
+#include <cstdio>
 #include <string>
 #include <string_view>
 #include <cstring>
 #include <charconv>
+#include "config.hpp"
+
+#if USE_STATIC_BUFFER
+static std::array<char, STATIC_BUFFER_SIZE> format_buffer;
+#endif
 
 namespace em {
 struct arg_analyze_result {
@@ -21,10 +28,19 @@ struct arg_analyze_result {
 template<typename T>
     requires std::integral<T>
 void write_argument(FILE *stream, const arg_analyze_result &attr, const T &value) {
-    char buffer[std::numeric_limits<T>::digits10 + 3]{};
-    auto [ptr, ec] = std::to_chars(buffer, buffer + sizeof(buffer), value, attr.int_base);
-    if (ec == std::errc()) {
-        fwrite(buffer, sizeof(char), static_cast<std::size_t>(ptr - buffer), stream);
+    if constexpr (USE_STATIC_BUFFER) {
+        auto [ptr, ec] =
+            std::to_chars(format_buffer.data(), format_buffer.data() + format_buffer.size(), value, attr.int_base);
+        if (ec == std::errc()) {
+            fwrite(format_buffer.data(), sizeof(char), static_cast<std::size_t>(ptr - format_buffer.data()), stream);
+        }
+    } else if constexpr (USE_STACK_BUFFER) {
+        std::array<std::uint8_t, STACK_BUFFER_SIZE> format_buffer;
+        auto [ptr, ec] =
+            std::to_chars(format_buffer.data(), format_buffer.data() + format_buffer.size(), value, attr.int_base);
+        if (ec == std::errc()) {
+            fwrite(format_buffer.data(), sizeof(char), static_cast<std::size_t>(ptr - format_buffer.data()), stream);
+        }
     }
 }
 /*处理布尔型*/
@@ -42,10 +58,40 @@ template<std::size_t N> void write_argument(FILE *stream, const arg_analyze_resu
 template<typename T>
     requires std::floating_point<T>
 void write_argument(FILE *stream, const arg_analyze_result &attr, const T &value) {
-    char buffer[128]{}; //TDDO：应该考虑这个内存的申请方式
-    auto [ptr, ec] = std::to_chars(buffer, buffer + sizeof(buffer), value, attr.float_format);
-    if (ec == std::errc()) {
-        fwrite(buffer, sizeof(char), static_cast<std::size_t>(ptr - buffer), stream);
+    if constexpr (USE_STATIC_BUFFER) {
+        if constexpr (FLOAT_FORMAT_BY_STD_TO_CHAR) {
+            auto [ptr, ec] = std::to_chars(format_buffer.data(),
+                                           format_buffer.data() + format_buffer.size(),
+                                           value,
+                                           attr.float_format);
+            if (ec == std::errc()) {
+                fwrite(format_buffer.data(),
+                       sizeof(char),
+                       static_cast<std::size_t>(ptr - format_buffer.data()),
+                       stream);
+            }
+        } else if (FLOAT_FORMAT_BY_STD_SNPRINTF) {
+            std::snprintf(format_buffer.data(), format_buffer.size(), "%f", static_cast<double>(value));
+            fwrite(format_buffer.data(), sizeof(char), std::strlen(format_buffer.data()), stream);
+        }
+
+    } else if constexpr (USE_STACK_BUFFER) {
+        std::array<char, STACK_BUFFER_SIZE> format_buffer;
+        if constexpr (FLOAT_FORMAT_BY_STD_TO_CHAR) {
+            auto [ptr, ec] = std::to_chars(format_buffer.data(),
+                                           format_buffer.data() + format_buffer.size(),
+                                           value,
+                                           attr.float_format);
+            if (ec == std::errc()) {
+                fwrite(format_buffer.data(),
+                       sizeof(char),
+                       static_cast<std::size_t>(ptr - format_buffer.data()),
+                       stream);
+            }
+        } else if (FLOAT_FORMAT_BY_STD_SNPRINTF) {
+            std::snprintf(format_buffer.data(), format_buffer.size(), "%f", static_cast<double>(value));
+            fwrite(format_buffer.data(), sizeof(char), std::strlen(format_buffer.data()), stream);
+        }
     }
 }
 /*处理 std::string*/
@@ -62,10 +108,19 @@ template<typename T>
     requires std::is_pointer_v<T>
 void write_argument(FILE *stream, const arg_analyze_result &attr, const T &value) {
     uintptr_t addr                                  = reinterpret_cast<uintptr_t>(value);
-    char      buffer[2 + sizeof(uintptr_t) * 2 + 1] = {}; // TODO
-    auto [ptr, ec] = std::to_chars(buffer, buffer + sizeof(buffer), addr, attr.int_base);
-    if (ec == std::errc()) {
-        fwrite(buffer, sizeof(char), static_cast<std::size_t>(ptr - buffer), stream);
+    if constexpr (USE_STATIC_BUFFER) {
+        auto [ptr, ec] =
+            std::to_chars(format_buffer.data(), format_buffer.data() + format_buffer.size(), addr, attr.int_base);
+        if (ec == std::errc()) {
+            fwrite(format_buffer.data(), sizeof(char), static_cast<std::size_t>(ptr - format_buffer.data()), stream);
+        }
+    } else if constexpr (USE_STACK_BUFFER) {
+        std::array<char, STACK_BUFFER_SIZE> format_buffer;
+        auto [ptr, ec] =
+            std::to_chars(format_buffer.data(), format_buffer.data() + format_buffer.size(), addr, attr.int_base);
+        if (ec == std::errc()) {
+            fwrite(format_buffer.data(), sizeof(char), static_cast<std::size_t>(ptr - format_buffer.data()), stream);
+        }
     }
 }
 
@@ -75,5 +130,4 @@ void write_argument(FILE *stream, const arg_analyze_result &attr, const std::nul
 }
 
 template<typename T> void write_argument(FILE *stream, const arg_analyze_result &attr, const T &value) = delete;
-
 }
